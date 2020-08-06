@@ -1,0 +1,233 @@
+```{r params}
+
+dur = 600
+
+# S1
+Q1 = TRUE
+Q1p1 = .8
+Q1on = 1 # Onset of Q
+Q1of = 150
+
+P1 = FALSE
+P1p1 = .8
+P1on = 1
+P1of = 100
+
+# S2
+Q2 = FALSE
+Q2p1 = .8
+Q2on = 150 # Onset of Q
+Q2of = 250
+
+P2 = TRUE
+P2p1 = .8
+P2on = 200
+P2of = 350
+
+# T
+Q3 = TRUE
+Q3p1 = .8
+Q3on = 400 # Onset of Q
+Q3of = 550
+
+P3 = TRUE
+P3p1 = .8
+P3on = 400
+P3of = 550
+
+# Decay rates
+pd1 = 0.05
+pd2 = pd1/5
+
+```
+
+```{r setup}
+sop = matrix(nrow = dur, ncol = 32)
+colnames(sop) = c('p1Q', 'pd1Q', 'pd2Q', 
+'pIQ', 'pA1Q', 'pA2Q', 'pTotalQ', 
+'pA1Qgain', 'pA1Qloss','pA2Qgain','pA2Qloss','pIQgain','pIQloss',
+'pA1Qdelta', 'pA2Qdelta', 'pIQdelta',
+'p1P', 'pd1P', 'pd2P', 
+'pIP', 'pA1P', 'pA2P', 'pTotalP', 
+'pA1Pgain', 'pA1Ploss','pA2Pgain','pA2Ploss','pIPgain','pIPloss',
+'pA1Pdelta', 'pA2Pdelta', 'pIPdelta')
+
+sop[,'p1Q'] = 0 # set as 0 to init
+sop[,'p1P'] = 0 
+
+
+if (Q1 == TRUE){sop[Q1on:Q1of,'p1Q'] = Q1p1}
+
+if (Q2 == TRUE){sop[Q2on:Q2of,'p1Q'] = Q2p1}
+
+if (Q3 == TRUE){sop[Q3on:Q3of,'p1Q'] = Q3p1}
+
+if (P1 == TRUE){sop[P1on:P1of,'p1P'] = P1p1}
+
+if (P2 == TRUE){sop[P2on:P2of,'p1P'] = P2p1}
+
+if (P3 == TRUE){sop[P3on:P3of,'p1P'] = P3p1}
+
+# sop[input$sopQon1[1]:input$sopQon1[2],'p1Q'] = input$sopQp1
+# sop[input$sopQon2[1]:input$sopQon2[2],'p1Q'] = input$sopQp1test
+# sop[input$sopXon2[1]:input$sopXon2[2],'p1X'] = input$sopXp1test
+
+sop[,'pd1Q'] = pd1      # set decay rate for Q
+sop[,'pd2Q'] = pd2      # set decay rate for Q
+sop[,'pd1P'] = pd1      # set decay rate for X
+sop[,'pd2P'] = pd2      # set decay rate for X
+sop[,'pIQ'] = 0         # Make I numeric
+sop[,'pIP'] = 0
+
+
+for (i in 1:nrow(sop)){
+    if (i == 1){
+        
+        sop[i,'pIQ'] = 1 - sop[i,'p1Q'] # This will be 1 as long as p1 = 0
+        sop[i,'pIP'] = 1 - sop[i,'p1P']
+        
+        # Deltas calculate
+        sop[i,'pA1Qgain'] = sop[i,'p1Q']
+        sop[i,'pA1Qloss'] = sop[i,'pA1Qgain'] * sop[i,'pd1Q']
+        sop[i,'pA1Qdelta'] = sop[i,'pA1Qgain'] - sop[i,'pA1Qloss']
+        
+        sop[i,'pA1Pgain'] = sop[i,'p1P']
+        sop[i,'pA1Ploss'] = sop[i,'pA1Pgain'] * sop[i,'pd1P']
+        sop[i,'pA1Pdelta'] = sop[i,'pA1Pgain'] - sop[i,'pA1Ploss']
+        
+        sop[i,'pA2Qgain'] = sop[i,'pA1Qloss']
+        sop[i,'pA2Qloss'] = sop[i,'pA2Qgain'] * sop[i,'pd2Q']
+        sop[i,'pA2Qdelta'] = sop[i,'pA2Qgain'] - sop[i,'pA2Qloss']
+        
+        sop[i,'pA2Pgain'] = sop[i,'pA1Ploss']
+        sop[i,'pA2Ploss'] = sop[i,'pA2Pgain'] * sop[i,'pd2P']
+        sop[i,'pA2Pdelta'] = sop[i,'pA2Pgain'] - sop[i,'pA2Ploss']
+        
+        sop[i,'pIQgain'] = sop[i,'pA2Qloss']
+        sop[i,'pIQloss'] = sop[i,'p1Q']
+        sop[i,'pIQdelta'] = sop[i,'pIQgain'] - sop[i,'pIQloss']
+        
+        sop[i,'pIPgain'] = sop[i,'pA2Ploss']
+        sop[i,'pIPloss'] = sop[i,'p1P']
+        sop[i,'pIPdelta'] = sop[i,'pIPgain'] - sop[i,'pIPloss']
+        
+        # Calculate proportions in each state
+        sop[i,'pA1Q'] = sop[i,'pA1Qdelta']
+        sop[i,'pA2Q'] = sop[i,'pA2Qdelta']
+        sop[i,'pIQ'] = sop[i,'pIQ'] + sop[i,'pIQgain']
+        sop[i,'pTotalQ'] = sop[i,'pIQ'] + sop[i,'pA1Q'] + sop[i,'pA2Q']  # total in all states
+        
+        sop[i,'pA1P'] = sop[i,'pA1Pdelta']
+        sop[i,'pA2P'] = sop[i,'pA2Pdelta']
+        sop[i,'pIP'] = sop[i,'pIP'] + sop[i,'pIPgain']
+        sop[i,'pTotalP'] = sop[i,'pIP'] + sop[i,'pA1P'] + sop[i,'pA2P']  # total in all states
+        
+    } else {
+        
+        sop[i,'pIQ'] = sop[i-1,'pIQ']
+        sop[i,'pIP'] = sop[i-1,'pIP']
+        
+        sop[i,'pA1Qgain'] = sop[i,'pIQ'] * sop[i,'p1Q'] # how mauch is activated from I
+        sop[i,'pA1Pgain'] = sop[i,'pIP'] * sop[i,'p1P']
+        
+        sop[i,'pA1Q'] = sop[i-1,'pA1Q'] + sop[i,'pA1Qgain'] # how much is there in total with carried over
+        sop[i,'pA1P'] = sop[i-1,'pA1P'] + sop[i,'pA1Pgain']
+        
+        sop[i,'pA1Qloss'] = sop[i,'pA1Q'] * sop[i,'pd1Q'] # how much decays to A2
+        sop[i,'pA1Ploss'] = sop[i,'pA1P'] * sop[i,'pd1P']
+        
+        sop[i,'pA1Q'] = sop[i,'pA1Q'] - sop[i,'pA1Qloss'] # how much is left after the decay
+        sop[i,'pA1P'] = sop[i,'pA1P'] - sop[i,'pA1Ploss']
+        
+        sop[i,'pA1Qdelta'] = sop[i,'pA1Qgain'] - sop[i,'pA1Qloss']
+        sop[i,'pA1Pdelta'] = sop[i,'pA1Pgain'] - sop[i,'pA1Ploss']
+        
+        sop[i,'pA2Qgain'] = sop[i,'pA1Qloss'] # how much is gained from A1->A2 decay
+        sop[i,'pA2Pgain'] = sop[i,'pA1Ploss']
+        
+        sop[i,'pA2Q'] = sop[i-1,'pA2Q'] + sop[i,'pA2Qgain'] # how much is there with carried over
+        sop[i,'pA2P'] = sop[i-1,'pA2P'] + sop[i,'pA2Pgain']
+        
+        sop[i,'pA2Qloss'] = sop[i,'pA2Q'] * sop[i,'pd2Q'] # how much decays A2->I
+        sop[i,'pA2Ploss'] = sop[i,'pA2P'] * sop[i,'pd2P']
+        
+        sop[i,'pA2Q'] = sop[i,'pA2Q'] - sop[i,'pA2Qloss'] # how much is left after A2->I decay
+        sop[i,'pA2P'] = sop[i,'pA2P'] - sop[i,'pA2Ploss']
+        
+        sop[i,'pA2Qdelta'] = sop[i,'pA2Qgain'] - sop[i,'pA2Qloss']
+        sop[i,'pA2Pdelta'] = sop[i,'pA2Pgain'] - sop[i,'pA2Ploss']
+        
+        sop[i,'pIQgain'] = sop[i,'pA2Qloss'] # how much decayed from A2
+        sop[i,'pIPgain'] = sop[i,'pA2Ploss']
+        
+        sop[i,'pIQloss'] = sop[i,'pA1Qgain']
+        sop[i,'pIPloss'] = sop[i,'pA1Pgain']
+        
+        sop[i,'pIQ'] = sop[i,'pIQ'] + sop[i,'pIQgain'] - sop[i,'pIQloss']
+        sop[i,'pIP'] = sop[i,'pIP'] + sop[i,'pIPgain'] - sop[i,'pIPloss']
+        
+        sop[i,'pIQdelta'] = sop[i,'pIQgain'] - sop[i,'pIQloss']
+        sop[i,'pIPdelta'] = sop[i,'pIPgain'] - sop[i,'pIPloss']
+        
+        sop[i,'pTotalQ'] = sop[i,'pIQ'] + sop[i,'pA1Q'] + sop[i,'pA2Q']
+        sop[i,'pTotalP'] = sop[i,'pIP'] + sop[i,'pA1P'] + sop[i,'pA2P']
+        
+    }
+}
+```
+
+```{r plot}
+
+pltA1 = TRUE
+pltA2 = TRUE
+pltI = FALSE
+pltSave = FALSE
+
+
+if (pltSave == TRUE){png(filename="sopsimplt.png", width = 800, height = 480, units = "px", pointsize = 20,
+     bg = "white", res = NA, type = c("cairo", "cairo-png", "Xlib", "quartz"))}
+
+ymax = max(c(sop[,'pA1Q'],sop[,'pA2Q'],sop[,'pIQ']))
+# ymin = min(c(sop[,'pA1Q'],sop[,'pA2Q'],sop[,'pIQ']))
+
+#col_q = "#D55E00"
+col_q = rgb(213/255, 94/255, 0, alpha = .5)
+#col_p = "#009E73"
+col_p = rgb(0/255, 158/255, 115/255, alpha = .5)
+
+
+plot(0, xlim = c(0,nrow(sop)), bty = 'n', pch = '', ylim = c(-0.08,ymax), xlab = 'Time', ylab = 'Activation')
+
+# Plot activation lines
+if (pltA1 == TRUE){
+    lines(sop[,'pA1Q'], col=col_q, lty = 1, lwd = 2)
+    lines(sop[,'pA1P'], col=col_p, lty = 1, lwd = 2)
+}
+
+if (pltA2 == TRUE){
+    lines(sop[,'pA2Q'], col=col_q, lty = 5, lwd = 2)
+    lines(sop[,'pA2P'], col=col_p, lty = 5, lwd = 2)
+}
+
+if (pltI == TRUE){
+    lines(sop[,'pIQ'], col=col_q, lty = 3, lwd = 2)
+    lines(sop[,'pIP'], col=col_p, lty = 3, lwd = 2)
+}
+
+
+
+# Plot Stimuli Durations
+if (Q1 == TRUE){rect(Q1on, -.03, Q1of, -.02, border = col_q, lwd = 2, col = col_q)}
+if (Q2 == TRUE){rect(Q2on, -.03, Q2of, -.02, border = col_q, lwd = 2, col = col_q)}
+if (Q3 == TRUE){rect(Q3on, -.03, Q3of, -.02, border = col_q, lwd = 2, col = col_q)}
+
+if (P1 == TRUE){rect(P1on, -.06, P1of, -.05, border = col_p, lwd = 2, col = col_p)}
+if (P2 == TRUE){rect(P2on, -.06, P2of, -.05, border = col_p, lwd = 2, col = col_p)}
+if (P3 == TRUE){rect(P3on, -.06, P3of, -.05, border = col_p, lwd = 2, col = col_p)}
+
+legend('topright', legend=c("Q A1", "Q A2", "P A1", "P A2"),
+       col=c(col_q, col_q, col_p, col_p), lty=c(1,5),lwd = 2, cex=1.2,
+       box.lty=0)
+
+if (pltSave == TRUE){dev.off()}
+```
